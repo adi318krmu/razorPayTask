@@ -1,0 +1,81 @@
+=========================================
+PROMPT LOGS - REIMBURSEMENT TOOL BACKEND
+=========================================
+Date/Time: 2026-06-26T01:16:22+05:30
+OS: Windows
+Status: Implemented Auth & Core Boilerplate
+
+-----------------------------------------
+1. USER REQUIREMENTS & GOALS
+-----------------------------------------
+- Goal: Create the backend boilerplate for a Reimbursement Tool.
+- Database: Supabase PostgreSQL.
+- Stack: MERN stack backend (Node/Express).
+- Code Style: Simple, functional, no classes.
+- API response structures:
+  Success: { success: true, message: "...", data: {...} }
+  Error: { success: false, message: "...", error: [...] }
+- Middlewares to setup:
+  * cors
+  * helmet
+  * express.json (body parser)
+  * cookie-parser (parser)
+  * morgan (logs)
+- Features requested:
+  * Schema creation
+  * Health check API ("/health")
+  * Authentication (Registration, Login, Logout, Role-based check)
+  * No extra feature routes for now
+
+-----------------------------------------
+2. MODULE DIRECTORY STRUCTURE SPECIFIED
+-----------------------------------------
+For every module:
+- <module-name>.routes.js
+- dto/<method>--<module-name>routes.js
+- <module-name>.controller.js
+- <module-name>.service.js
+- <module-name>.schema.js
+
+Folder architecture inside src:
+- src/app
+- src/config
+- src/middlewares
+- src/utils
+- src/constants
+- src/types
+- src/loggers
+- src/app.js
+- src/server.js
+
+-----------------------------------------
+3. IMPLEMENTATION DETAILS
+-----------------------------------------
+- Initialized Node project using package.json.
+- Database Connection: Set up a PostgreSQL client via pg.Pool in config/db.js to connect to Supabase database URL. Auto-enables SSL rejectUnauthorized if connection string contains 'supabase'.
+- Schema Design: Created schema.sql containing table structures for users, employee_manager, reimbursements, and reimbursement_approvals.
+- Created auth module (src/app/auth/) with functional controllers, services, routes, schemas and validators.
+- Validations: Handled by Zod schemas in auth.schema.js, linked in dto/post--authroutes.js, and executed using the validateBody middleware.
+- Security: Configured JWT storage inside HttpOnly cookies alongside Authorization header fallback.
+
+-----------------------------------------
+4. ENDPOINT CONTRACTS
+-----------------------------------------
+* GET /health
+  - Success response: 200 OK with status UP.
+
+* POST /api/v1/auth/register
+  - Body: { name, email, password, role }
+  - Success response: 201 Created.
+
+* POST /api/v1/auth/login
+  - Body: { email, password }
+  - Success response: 200 OK. Returns JWT token and sets HttpOnly cookie "token".
+
+* POST /api/v1/auth/logout
+  - Headers/Cookie: JWT Session
+  - Success response: 200 OK. Clears cookie.
+
+* GET /api/v1/auth/me
+  - Headers/Cookie: JWT Session
+  - Success response: 200 OK. Returns logged-in user profile.
