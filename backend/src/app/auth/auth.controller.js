@@ -68,7 +68,7 @@ const login = async (req, res, next) => {
     };
 
     // Set JWT in HTTP-only cookie
-    res.cookie('token', token, cookieOptions);
+    res.cookie('auth', token, cookieOptions);
 
     // Remove password hash from response user object (omits created_at since it is not in users table)
     const userResponse = {
@@ -92,7 +92,7 @@ const login = async (req, res, next) => {
  */
 const logout = async (req, res, next) => {
   try {
-    res.clearCookie('token', {
+    res.clearCookie('auth', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'

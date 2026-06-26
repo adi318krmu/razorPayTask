@@ -1,5 +1,6 @@
 const { pgTable, uuid, varchar, text } = require('drizzle-orm/pg-core');
 const { z } = require('zod');
+const { ROLE_VALUES } = require('../../constants/roles');
 
 // ==========================================
 // 1. DRIZZLE ORM DATABASE SCHEMAS
@@ -40,8 +41,8 @@ const registerSchema = z.object({
   password: z.string()
     .min(6, { message: 'Password must be at least 6 characters long' })
     .max(100, { message: 'Password must not exceed 100 characters' }),
-  role: z.enum(['employee', 'manager', 'admin'], {
-    errorMap: () => ({ message: "Role must be either 'employee', 'manager', or 'admin'" })
+  role: z.enum(ROLE_VALUES, {
+    errorMap: () => ({ message: `Role must be one of: ${ROLE_VALUES.join(', ')}` })
   })
 });
 
@@ -60,3 +61,4 @@ module.exports = {
   registerSchema,
   loginSchema
 };
+

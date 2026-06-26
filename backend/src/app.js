@@ -10,6 +10,7 @@ require('dotenv').config();
 const { sendSuccess, sendError } = require('./utils/response');
 const errorHandler = require('./middlewares/error');
 const authRouter = require('./app/auth/auth.routes');
+const rolesRouter = require('./app/roles/roles.routes');
 
 const app = express();
 
@@ -40,6 +41,7 @@ app.get('/health', (req, res) => {
 
 // 3. Register Module Routes
 app.use('/rest/onboarding', authRouter);
+app.use('/rest/roles', rolesRouter);
 
 // 4. Catch-all undefined routes (404)
 app.use((req, res, next) => {

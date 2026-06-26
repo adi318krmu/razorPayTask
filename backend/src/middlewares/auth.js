@@ -2,19 +2,15 @@ const { verifyToken } = require('../utils/token');
 const { sendError } = require('../utils/response');
 
 /**
- * Middleware to check if user is authenticated via JWT.
- * Strictly cookie-based authentication.
+ * Middleware: authenticate
+ * Reads the JWT from the HttpOnly cookie named "auth", verifies it,
+ * and attaches the decoded payload to req.user.
  */
-const isAuthenticated = (req, res, next) => {
-  let token = null;
-
-  // Read cookie token
-  if (req.cookies && req.cookies.token) {
-    token = req.cookies.token;
-  }
+const authenticate = (req, res, next) => {
+  const token = req.cookies?.auth;
 
   if (!token) {
-    return sendError(res, 401, 'Authentication failed. Please log in.');
+    return sendError(res, 401, 'Authentication required. Please log in.');
   }
 
   const decoded = verifyToken(token);
@@ -24,7 +20,7 @@ const isAuthenticated = (req, res, next) => {
 
   // Attach user payload to request
   req.user = {
-    id: decoded.id,
+    id:   decoded.id,
     role: decoded.role
   };
 
@@ -32,24 +28,39 @@ const isAuthenticated = (req, res, next) => {
 };
 
 /**
- * Middleware to check if user role matches authorized roles.
- * @param {Array<string>} roles - List of allowed roles
+ * Middleware factory: authorize(...roles)
+ * Allows access only if req.user.role is one of the supplied roles.
+ * Must be used after `authenticate`.
+ *
+ * @param {...string} roles - Allowed role strings (e.g. 'CFO', 'RM')
+ * @returns {import('express').RequestHandler}
  */
-const hasRole = (roles = []) => {
+const authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
-      return sendError(res, 401, 'Access denied. User not authenticated.');
+      return sendError(res, 401, 'Authentication required. Please log in.');
     }
 
     if (!roles.includes(req.user.role)) {
-      return sendError(res, 403, 'Access denied. You do not have the required permissions.');
+      return sendError(
+        res,
+        403,
+        `Access denied. Required role(s): ${roles.join(', ')}.`
+      );
     }
 
     next();
   };
 };
 
+// ── Backwards-compatibility aliases (used by existing auth.routes.js) ─────────
+const isAuthenticated = authenticate;
+const hasRole = (rolesArray = []) => authorize(...rolesArray);
+
 module.exports = {
+  authenticate,
+  authorize,
   isAuthenticated,
   hasRole
 };
+

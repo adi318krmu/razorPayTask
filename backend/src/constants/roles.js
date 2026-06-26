@@ -1,8 +1,12 @@
-// Roles constants defined in schema
+// Business roles for the reimbursement tool
 const ROLES = {
-  EMPLOYEE: 'employee',
-  MANAGER: 'manager',
-  ADMIN: 'admin'
+  EMP: 'EMP',   // Employee
+  RM:  'RM',    // Relationship Manager
+  APE: 'APE',   // Approving Entity
+  CFO: 'CFO'    // Chief Financial Officer
 };
 
-module.exports = ROLES;
+/** Convenience array for Zod enums and DB CHECK constraints */
+const ROLE_VALUES = Object.values(ROLES); // ['EMP', 'RM', 'APE', 'CFO']
+
+module.exports = { ROLES, ROLE_VALUES };
