@@ -109,4 +109,38 @@ const removeAssignment = async (employeeId) => {
   return { deleted };
 };
 
-module.exports = { assignEmployee, removeAssignment };
+/**
+ * Get employees list — visibility depends on caller's role.
+ *
+ *   RM  → employees reporting to them (via employee_manager join)
+ *   APE → all users with role EMP or RM
+ *   CFO → every user with their manager assignment (LEFT JOIN)
+ *   EMP → forbidden (also blocked in router)
+ *
+ * @param {Object} caller - { id, role } from req.user
+ * @returns {Promise<Array>}
+ */
+const getEmployees = async (caller) => {
+  const { id: callerId, role: callerRole } = caller;
+
+  switch (callerRole) {
+    case ROLES.RM:
+      return employeesRepository.findEmployeesUnderManager(callerId);
+
+    case ROLES.APE:
+      return employeesRepository.findAllEmployeesAndManagers();
+
+    case ROLES.CFO:
+      return employeesRepository.findAllUsers();
+
+    default: {
+      // Defence-in-depth: EMP should never reach here (blocked by authorize middleware)
+      const err = new Error('Access denied. EMP cannot view the employees list.');
+      err.statusCode = 403;
+      throw err;
+    }
+  }
+};
+
+module.exports = { assignEmployee, removeAssignment, getEmployees };
+

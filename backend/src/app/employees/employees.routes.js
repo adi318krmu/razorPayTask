@@ -6,16 +6,30 @@ const { authenticate, authorize } = require('../../middlewares/auth');
 const router = express.Router();
 
 /**
+ * GET /rest/employees
+ *
+ * Role-based employee list. EMP is forbidden.
+ *   RM  → employees assigned to them (JOIN employee_manager)
+ *   APE → all users with role EMP or RM
+ *   CFO → all users with manager assignment (LEFT JOIN)
+ *
+ * Middleware chain:
+ *  1. authenticate              — verify JWT from HttpOnly cookie "auth"
+ *  2. authorize('RM','APE','CFO') — block EMP; 403 for EMP role
+ *  3. listEmployees             — role-dispatch in service → repository
+ */
+router.get(
+  '/',
+  authenticate,
+  authorize('RM', 'APE', 'CFO'),
+  employeesController.listEmployees
+);
+
+/**
  * POST /rest/employees/assign
  *
  * Assign an employee (role: EMP) to a manager (role: RM).
  * Only CFO can perform this action.
- *
- * Middleware chain:
- *  1. authenticate         — verify JWT from HttpOnly cookie "auth"
- *  2. authorize('CFO')     — restrict to CFO role; 403 otherwise
- *  3. validateAssignEmployee — Zod: { employeeId (UUID), managerId (UUID) }; 400 on failure
- *  4. assign               — business logic + DB insert
  */
 router.post(
   '/assign',
@@ -28,17 +42,7 @@ router.post(
 /**
  * DELETE /rest/employees/assign
  *
- * Remove an employee's manager assignment.
- * Only CFO can perform this action.
- *
- * Middleware chain:
- *  1. authenticate           — verify JWT from HttpOnly cookie "auth"
- *  2. authorize('CFO')       — restrict to CFO role; 403 otherwise
- *  3. validateRemoveAssignment — Zod: { employeeId (UUID) }; 400 on failure
- *  4. removeAssignment       — business logic + DB delete
- *
- * Note: Body is used (not URL params) to be consistent with the POST endpoint
- * and to keep IDs out of the URL for this internal admin operation.
+ * Remove an employee's manager assignment. CFO only.
  */
 router.delete(
   '/assign',
@@ -49,3 +53,4 @@ router.delete(
 );
 
 module.exports = router;
+

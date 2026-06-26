@@ -12,6 +12,7 @@ const errorHandler = require('./middlewares/error');
 const authRouter = require('./app/auth/auth.routes');
 const rolesRouter = require('./app/roles/roles.routes');
 const employeesRouter = require('./app/employees/employees.routes');
+const reimbursementsRouter = require('./app/reimbursements/reimbursements.routes');
 
 const app = express();
 
@@ -44,6 +45,7 @@ app.get('/health', (req, res) => {
 app.use('/rest/onboarding', authRouter);
 app.use('/rest/roles', rolesRouter);
 app.use('/rest/employees', employeesRouter);
+app.use('/rest/reimbursements', reimbursementsRouter);
 
 // 4. Catch-all undefined routes (404)
 app.use((req, res, next) => {

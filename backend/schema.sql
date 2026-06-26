@@ -7,13 +7,28 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- ============================================================
 -- MIGRATION: Run these ALTER statements if tables already exist
 -- ============================================================
+-- 1. Fix users role constraint
 -- ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
 -- ALTER TABLE users ADD CONSTRAINT users_role_check
 --   CHECK (role IN ('EMP', 'RM', 'APE', 'CFO'));
 --
+-- 2. Fix approvals approver_role constraint
 -- ALTER TABLE reimbursement_approvals DROP CONSTRAINT IF EXISTS reimbursement_approvals_approver_role_check;
 -- ALTER TABLE reimbursement_approvals ADD CONSTRAINT reimbursement_approvals_approver_role_check
 --   CHECK (approver_role IN ('RM', 'APE', 'CFO'));
+--
+-- 3. Fix reimbursements status constraint + add updated_at
+-- ALTER TABLE reimbursements DROP CONSTRAINT IF EXISTS reimbursements_status_check;
+-- ALTER TABLE reimbursements ADD CONSTRAINT reimbursements_status_check
+--   CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED'));
+-- ALTER TABLE reimbursements ALTER COLUMN status SET DEFAULT 'PENDING';
+-- ALTER TABLE reimbursements ADD COLUMN IF NOT EXISTS
+--   updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+--
+-- 4. Fix reimbursement_approvals decision constraint
+-- ALTER TABLE reimbursement_approvals DROP CONSTRAINT IF EXISTS reimbursement_approvals_decision_check;
+-- ALTER TABLE reimbursement_approvals ADD CONSTRAINT reimbursement_approvals_decision_check
+--   CHECK (decision IN ('APPROVED', 'REJECTED'));
 -- ============================================================
 
 -- 1. Users Table
@@ -46,8 +61,9 @@ CREATE TABLE IF NOT EXISTS reimbursements (
     title VARCHAR(255) NOT NULL,
     description TEXT,
     amount NUMERIC(12, 2) NOT NULL CHECK (amount > 0),
-    status VARCHAR(50) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    status VARCHAR(50) NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
+    created_at  TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at  TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Index on employee_id to retrieve an employee's requests quickly
@@ -61,7 +77,7 @@ CREATE TABLE IF NOT EXISTS reimbursement_approvals (
     reimbursement_id UUID NOT NULL REFERENCES reimbursements(id) ON DELETE CASCADE,
     approver_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     approver_role VARCHAR(50) NOT NULL CHECK (approver_role IN ('RM', 'APE', 'CFO')),
-    decision VARCHAR(50) NOT NULL CHECK (decision IN ('approved', 'rejected')),
+    decision VARCHAR(50) NOT NULL CHECK (decision IN ('APPROVED', 'REJECTED')),
     remarks TEXT,
     approved_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

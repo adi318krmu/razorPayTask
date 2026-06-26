@@ -1,4 +1,4 @@
-const { eq } = require('drizzle-orm');
+const { and, eq, inArray } = require('drizzle-orm');
 const { db } = require('../../config/db');
 const { users, employeeManager } = require('../auth/auth.schema');
 
@@ -7,21 +7,20 @@ const { users, employeeManager } = require('../auth/auth.schema');
  * Single Responsibility: raw DB operations only — no business logic.
  */
 
+// ─── Shared column projection (reused across queries) ────────────────────────
+const USER_COLS = {
+  id:    users.id,
+  name:  users.name,
+  email: users.email,
+  role:  users.role
+};
+
 /**
  * Find a user by UUID, returning id, name, email, and role.
- * Used to verify existence and check role before assignment.
- *
- * @param {string} id - User UUID
- * @returns {Promise<{id: string, name: string, email: string, role: string}|null>}
  */
 const findUserById = async (id) => {
   const result = await db
-    .select({
-      id:    users.id,
-      name:  users.name,
-      email: users.email,
-      role:  users.role
-    })
+    .select(USER_COLS)
     .from(users)
     .where(eq(users.id, id));
 
@@ -30,10 +29,6 @@ const findUserById = async (id) => {
 
 /**
  * Find an existing assignment for a given employee.
- * Since employee_id is the PRIMARY KEY, at most one row is returned.
- *
- * @param {string} employeeId - Employee UUID
- * @returns {Promise<{employeeId: string, managerId: string}|null>}
  */
 const findAssignment = async (employeeId) => {
   const result = await db
@@ -49,10 +44,6 @@ const findAssignment = async (employeeId) => {
 
 /**
  * Insert a new employee-manager assignment row.
- *
- * @param {string} employeeId - UUID of the employee (role: EMP)
- * @param {string} managerId  - UUID of the manager  (role: RM)
- * @returns {Promise<{employeeId: string, managerId: string}>}
  */
 const createAssignment = async (employeeId, managerId) => {
   const result = await db
@@ -68,9 +59,6 @@ const createAssignment = async (employeeId, managerId) => {
 
 /**
  * Delete the assignment row for an employee.
- *
- * @param {string} employeeId - UUID of the employee whose assignment is removed
- * @returns {Promise<{employeeId: string, managerId: string}|null>}
  */
 const deleteAssignment = async (employeeId) => {
   const result = await db
@@ -84,9 +72,92 @@ const deleteAssignment = async (employeeId) => {
   return result[0] || null;
 };
 
+// ─── GET query methods ────────────────────────────────────────────────────────
+
+/**
+ * GET /rest/employees — RM view.
+ * Returns all employees (role=EMP) whose employee_id is linked to this RM.
+ * Single JOIN: employee_manager ⟶ users
+ *
+ * @param {string} managerId - UUID of the authenticated RM
+ * @returns {Promise<Array>}
+ */
+const findEmployeesUnderManager = async (managerId) => {
+  return db
+    .select({
+      id:        users.id,
+      name:      users.name,
+      email:     users.email,
+      role:      users.role,
+      managerId: employeeManager.managerId
+    })
+    .from(employeeManager)
+    .innerJoin(users, eq(employeeManager.employeeId, users.id))
+    .where(eq(employeeManager.managerId, managerId));
+};
+
+/**
+ * GET /rest/employees — APE view.
+ * Returns all users with role EMP or RM.
+ *
+ * @returns {Promise<Array>}
+ */
+const findAllEmployeesAndManagers = async () => {
+  return db
+    .select(USER_COLS)
+    .from(users)
+    .where(inArray(users.role, ['EMP', 'RM']));
+};
+
+/**
+ * GET /rest/employees — CFO view.
+ * Returns every user (including APE and CFO) with their manager assignment if any.
+ * LEFT JOIN so users without an assignment are still included.
+ *
+ * @returns {Promise<Array>}
+ */
+const findAllUsers = async () => {
+  return db
+    .select({
+      id:        users.id,
+      name:      users.name,
+      email:     users.email,
+      role:      users.role,
+      managerId: employeeManager.managerId   // null when no assignment
+    })
+    .from(users)
+    .leftJoin(employeeManager, eq(users.id, employeeManager.employeeId));
+};
+
+/**
+ * Verify that a specific employee reports to a specific manager.
+ * Used by GET /rest/reimbursements/:userId (RM gate).
+ *
+ * @param {string} employeeId
+ * @param {string} managerId
+ * @returns {Promise<boolean>}
+ */
+const isEmployeeUnderManager = async (employeeId, managerId) => {
+  const result = await db
+    .select({ employeeId: employeeManager.employeeId })
+    .from(employeeManager)
+    .where(
+      and(
+        eq(employeeManager.employeeId, employeeId),
+        eq(employeeManager.managerId,  managerId)
+      )
+    );
+
+  return result.length > 0;
+};
+
 module.exports = {
   findUserById,
   findAssignment,
   createAssignment,
-  deleteAssignment
+  deleteAssignment,
+  findEmployeesUnderManager,
+  findAllEmployeesAndManagers,
+  findAllUsers,
+  isEmployeeUnderManager
 };

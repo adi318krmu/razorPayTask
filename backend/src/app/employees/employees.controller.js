@@ -48,4 +48,25 @@ const removeAssignment = async (req, res, next) => {
   }
 };
 
-module.exports = { assign, removeAssignment };
+/**
+ * GET /rest/employees
+ * List employees with role-based visibility (RM / APE / CFO).
+ * EMP is blocked at the route level via authorize middleware.
+ *
+ * @type {import('express').RequestHandler}
+ */
+const listEmployees = async (req, res, next) => {
+  try {
+    const employees = await employeesService.getEmployees(req.user);
+
+    return sendSuccess(res, 200, 'Employees retrieved successfully', {
+      count: employees.length,
+      employees
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+module.exports = { assign, removeAssignment, listEmployees };
+
