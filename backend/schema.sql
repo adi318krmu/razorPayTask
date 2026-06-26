@@ -4,27 +4,39 @@
 -- Ensure UUID extension is available (Supabase has this by default)
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- 1. Users Table (Aligned with your provided database diagram)
+-- ============================================================
+-- MIGRATION: Run these ALTER statements if tables already exist
+-- ============================================================
+-- ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
+-- ALTER TABLE users ADD CONSTRAINT users_role_check
+--   CHECK (role IN ('EMP', 'RM', 'APE', 'CFO'));
+--
+-- ALTER TABLE reimbursement_approvals DROP CONSTRAINT IF EXISTS reimbursement_approvals_approver_role_check;
+-- ALTER TABLE reimbursement_approvals ADD CONSTRAINT reimbursement_approvals_approver_role_check
+--   CHECK (approver_role IN ('RM', 'APE', 'CFO'));
+-- ============================================================
+
+-- 1. Users Table
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
-    role VARCHAR(50) NOT NULL CHECK (role IN ('employee', 'manager', 'admin'))
+    role VARCHAR(50) NOT NULL CHECK (role IN ('EMP', 'RM', 'APE', 'CFO'))
 );
 
 -- Index on email for fast lookups during login
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
--- 2. Employee-Manager Relationship Table (Aligned with your provided database diagram)
+-- 2. Employee-Manager Relationship Table
 CREATE TABLE IF NOT EXISTS employee_manager (
     employee_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-    manager_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    manager_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     -- Prevent an employee from being their own manager
     CONSTRAINT chk_different_user CHECK (employee_id <> manager_id)
 );
 
--- Index on manager_id to find all employees managed by a specific manager
+-- Index on manager_id to find all employees under a specific manager
 CREATE INDEX IF NOT EXISTS idx_employee_manager_manager_id ON employee_manager(manager_id);
 
 -- 3. Reimbursements Table
@@ -48,7 +60,7 @@ CREATE TABLE IF NOT EXISTS reimbursement_approvals (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     reimbursement_id UUID NOT NULL REFERENCES reimbursements(id) ON DELETE CASCADE,
     approver_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    approver_role VARCHAR(50) NOT NULL CHECK (approver_role IN ('manager', 'admin')),
+    approver_role VARCHAR(50) NOT NULL CHECK (approver_role IN ('RM', 'APE', 'CFO')),
     decision VARCHAR(50) NOT NULL CHECK (decision IN ('approved', 'rejected')),
     remarks TEXT,
     approved_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -56,3 +68,4 @@ CREATE TABLE IF NOT EXISTS reimbursement_approvals (
 
 -- Index on reimbursement_id to get approval history for a reimbursement
 CREATE INDEX IF NOT EXISTS idx_approvals_reimbursement_id ON reimbursement_approvals(reimbursement_id);
+
